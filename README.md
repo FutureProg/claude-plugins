@@ -23,6 +23,12 @@ ln -s "/Users/nick/Dev/Claude Plugins/Fuecoco"  ~/.claude/dev-mods/<session-id>/
 ln -s "/Users/nick/Dev/Claude Plugins/Pokeball" ~/.claude/dev-mods/<session-id>/pokeball
 ```
 
+The desktop's hot-reload watcher misses edits made through symlinks, so use real copies and keep them in sync after each edit:
+
+```bash
+tools/sync-dev.sh [session-id]   # copies Fuecoco/ (and Pokeball/ if it is already there) into the newest ~/.claude/dev-mods/<session-id>/
+```
+
 Check a mod with `claude plugin validate <folder>`.
 
 ## Notes on the assets (private repo)

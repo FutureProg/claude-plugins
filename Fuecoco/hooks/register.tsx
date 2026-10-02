@@ -4,6 +4,9 @@ import type { Anim } from '../types'
 
 const PANE = 'fuecoco'
 const TICK_MS = 50
+// desktop only: the strip above the prompt is filled with the page's own background, so it looks transparent
+// (the app draws a grey frame around it that this covers); the terminal's strip has no fill at all
+const BAND_BG = '#fcfcfb'
 
 // per animation: rendered frames, ms per frame, the terminal's frame-file prefix, and whether it plays once
 const ANIMS = {
@@ -135,6 +138,7 @@ async function judge($: any, answer: string, reason: string): Promise<Verdict> {
 const SOUNDS = ['index', 'glad1', 'glad2', 'glad3', 'sad', 'ex1', 'ex2', 'ex3', 'ex4', 'anger', 'atk', 'spatk', 'env'] as const
 const GLAD = ['glad1', 'glad2', 'glad3'] as const
 const NEUTRAL = ['ex1', 'ex3', 'ex4'] as const
+const FRIENDLY = ['index', 'env', 'glad1', 'glad2', 'glad3', 'ex1', 'ex3', 'ex4'] as const
 let nextSound = 0
 let failures = 0 // tool failures this turn: they sound only when the turn ends
 let lastChimeAt = -10000
@@ -163,6 +167,19 @@ function chime($: any) {
   lastChimeAt = tick
 
   return cry($, NEUTRAL[Math.floor(Math.random() * NEUTRAL.length)])
+}
+
+// a poke wakes him if he is sleepy or idle (not while he is busy or waiting for you), with a random friendly sound
+async function poke($: any) {
+  if (mood !== 'working' && mood !== 'tired' && mood !== 'alert') {
+    if (mood === 'calm' || mood === 'drowsy' || mood === 'dozing' || mood === 'asleep1' || mood === 'asleep2' || mood === 'asleep3' || mood === 'step' || mood === 'stuck') {
+      await setMood($, 'glad')
+    } else if (!isAuto) {
+      await show($, MOODS.glad.anim)
+    }
+  }
+
+  await cry($, FRIENDLY[Math.floor(Math.random() * FRIENDLY.length)])
 }
 
 function testSound($: any) {
@@ -369,19 +386,41 @@ export const register: Register = on => {
     const picture = await draw($, e, true)
     if (picture === null) return below
 
-    const { value: status = '' } = await $.state.get({ plugin: 'fuecoco', key: 'status' } as const)
     const { value: scare = null } = await $.state.get({ plugin: 'fuecoco', key: 'startle' } as const)
     const { Box, Text } = $.ui.resolve(e)
-    const mine = (
-      <Box alignItems="center">
-        {picture}
-        <Text dimColor>
-          {' '}
-          Fuecoco · {status}
-          {scare !== null ? ` ${scare.mark}` : ''}
+    // on desktop the app draws a grey frame around the strip: stretch past each side to cover it.
+    // Negative margins pull the box outward (and shrink what the bar reserves); the padding gives that room back
+    // and sits his picture low, so his feet are on the bottom edge. A taller tree needs more rows from the band
+    // or it scrolls, so with fewer rows the stretch is trimmed: first the extra top bleed, then all vertical bleed.
+    const wide = (e.props.bodyColumns ?? 80) + 3
+    const rows = e.props.maxRows ?? 99
+    const fit =
+      e.surface !== 'desktop'
+        ? { width: '100%' }
+        : rows >= 7
+          ? { marginX: -1, marginTop: -2, marginBottom: -1, paddingTop: 3, paddingBottom: 0, width: wide }
+          : rows >= 6
+            ? { marginX: -1, marginTop: -1, marginBottom: -1, paddingTop: 2, paddingBottom: 0, width: wide }
+            : { marginX: -1, width: wide }
+
+    // the terminal draws no fill; on desktop the page-coloured box also covers the app's grey frame (see `fit`)
+    const mark =
+      e.surface === 'terminal' && scare !== null ? (
+        <Text color={scare.mark === '?' ? 'blue' : 'red'} bold>
+          {` ${scare.mark}`}
         </Text>
-      </Box>
-    )
+      ) : null
+    const mine =
+      e.surface === 'desktop' ? (
+        <Box alignItems="center" justifyContent="center" backgroundColor={BAND_BG} {...fit}>
+          {picture}
+        </Box>
+      ) : (
+        <Box alignItems="center" justifyContent="center" width="100%">
+          {picture}
+          {mark}
+        </Box>
+      )
 
     return below ? (
       <Box flexDirection="column">
@@ -418,6 +457,7 @@ export const register: Register = on => {
           {lastSound !== '' ? `  ♪ ${lastSound}` : ''}
         </Text>
         <Box>
+          <Button key="poke" label="Poke" onPress={() => poke($)} />
           <Button key="auto" label={isAutoNow ? 'Auto ✓' : 'Auto'} onPress={() => follow($)} />
           <Button
             key="sound"
