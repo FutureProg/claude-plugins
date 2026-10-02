@@ -1,0 +1,1 @@
+{ "name": "fuecoco", "version": "0.1.0", "description": "A Fuecoco buddy in a side pane, animated from Pokémon Sleep frames.", "types": "./types/index.d.ts" }

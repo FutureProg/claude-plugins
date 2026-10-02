@@ -1,0 +1,1 @@
+{ "name": "pokeball", "version": "0.1.0", "description": "A Pokéball above the prompt: it wobbles while Claude works and clicks shut when a turn completes.", "types": "./types/index.d.ts" }

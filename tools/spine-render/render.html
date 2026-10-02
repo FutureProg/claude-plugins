@@ -1,0 +1,38 @@
+<!doctype html><meta charset=utf-8><body style="margin:0;background:#888">
+<canvas id=c width=256 height=256 style="background:#ccc"></canvas><div id=s>start</div>
+<script src="spine-webgl.js"></script>
+<script>
+const q=new URLSearchParams(location.search);
+const FILE=q.get('f'),ANIM=q.get('a'),FPS=+q.get('fps'),OUT=q.get('out'),WORLD=+(q.get('world')||480),PX=+(q.get('px')||256),PMA=q.get('pma')!=='0';
+const log=m=>{document.getElementById('s').textContent=m};
+(async()=>{
+const canvas=document.getElementById('c');canvas.width=canvas.height=PX;
+const ctx=new spine.ManagedWebGLRenderingContext(canvas,{alpha:true,premultipliedAlpha:PMA,preserveDrawingBuffer:true});
+const gl=ctx.gl;
+if(q.get('upma')==='1'){const o=gl.pixelStorei.bind(gl);gl.pixelStorei=(p,v)=>o(p,p===gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL?true:v)}
+const am=new spine.AssetManager(ctx,'');
+am.loadBinary(FILE+'.skel');am.loadTextureAtlas(FILE+'.atlas');
+await new Promise(r=>{const t=()=>am.isLoadingComplete()?r():setTimeout(t,50);t()});
+const atlas=am.require(FILE+'.atlas');
+const sd=new spine.SkeletonBinary(new spine.AtlasAttachmentLoader(atlas)).readSkeletonData(am.require(FILE+'.skel'));
+const skel=new spine.Skeleton(sd);const asd=new spine.AnimationStateData(sd);const st=new spine.AnimationState(asd);
+const dur=sd.findAnimation(ANIM).duration;const n=Math.round(dur*FPS);
+const step=()=>{st.update(1/FPS);st.apply(skel);skel.updateWorldTransform()};
+const reset=()=>{skel.setToSetupPose();st.clearTracks();st.setAnimation(0,ANIM,true);st.update(0);st.apply(skel);skel.updateWorldTransform()};
+// pass 1: union bounds
+reset();let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;const off=new spine.Vector2(),size=new spine.Vector2();
+for(let i=0;i<n;i++){skel.getBounds(off,size,[]);x0=Math.min(x0,off.x);y0=Math.min(y0,off.y);x1=Math.max(x1,off.x+size.x);y1=Math.max(y1,off.y+size.y);step()}
+const cx=(x0+x1)/2,cy=(y0+y1)/2;
+const renderer=new spine.SceneRenderer(canvas,gl);
+renderer.camera.position.x=cx;renderer.camera.position.y=cy;renderer.camera.viewportWidth=WORLD;renderer.camera.viewportHeight=WORLD;renderer.camera.update();
+reset();
+for(let i=0;i<n;i++){
+  gl.viewport(0,0,PX,PX);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
+  renderer.begin();renderer.drawSkeleton(skel,PMA);renderer.end();
+  const b64=canvas.toDataURL('image/png').split(',')[1];
+  await fetch('/save?name='+OUT+'/'+String(i).padStart(3,'0')+'.png',{method:'POST',body:b64});
+  step();log(OUT+' '+(i+1)+'/'+n);
+}
+await fetch('/log',{method:'POST',body:JSON.stringify({done:OUT,n,fps:FPS,dur,bounds:[x0,y0,x1,y1]})});log('DONE '+OUT+' '+n);
+})().catch(e=>{log('ERR '+e);fetch('/log',{method:'POST',body:'ERR '+e+' '+(e.stack||'')})});
+</script>

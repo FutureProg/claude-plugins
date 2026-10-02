@@ -1,0 +1,34 @@
+# Claude Plugins
+
+Small mods for Claude Code (terminal and desktop), written as plugins of function hooks that hot-reload in a session.
+
+| Folder | What it is |
+| --- | --- |
+| `Fuecoco/` | A Fuecoco buddy: a side pane plus a mini version above the prompt. Moods follow the session (walks while Claude works, cheers when a turn is done, dozes off when you're away), with voice clips. |
+| `Pokeball/` | A Pokéball above the prompt that rocks while Claude works and clicks shut when a turn finishes. |
+| `tools/spine-render/` | The scripts used to turn Pokémon Sleep Spine animations into frames (see below). |
+
+## Loading them
+
+In a terminal session:
+
+```bash
+claude --plugin-dir "/Users/nick/Dev/Claude Plugins/Pokeball" --plugin-dir "/Users/nick/Dev/Claude Plugins/Fuecoco"
+```
+
+In the desktop app, load the `plugin-authoring` skill once per session, then link the folders into that session's hot-reload folder:
+
+```bash
+ln -s "/Users/nick/Dev/Claude Plugins/Fuecoco"  ~/.claude/dev-mods/<session-id>/fuecoco
+ln -s "/Users/nick/Dev/Claude Plugins/Pokeball" ~/.claude/dev-mods/<session-id>/pokeball
+```
+
+Check a mod with `claude plugin validate <folder>`.
+
+## Notes on the assets (private repo)
+
+`Fuecoco/frames`, `Fuecoco/anim` and `Fuecoco/sounds` hold art and audio from the Pokémon games. Those belong to Nintendo, Game Freak and The Pokémon Company. They are here for personal use only: keep this repository private and do not redistribute them.
+
+- Animation frames were rendered from the Spine 4.0.63 skeletons for Pokémon Sleep (as shown on the RaenonX Pokémon Sleep Wiki) with `tools/spine-render` and the spine-webgl 4.0 runtime. Render with premultiplied alpha **off**, or the pieces get bright outlines.
+- Voice clips are Fuecoco's Scarlet/Violet sounds, from a personal collection.
+- Desktop pictures are palette APNGs, because the desktop's SVG source is capped at 131,072 characters.
