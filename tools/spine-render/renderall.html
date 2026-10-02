@@ -1,0 +1,47 @@
+<!doctype html><meta charset=utf-8><body style="margin:0;background:#888">
+<canvas id=c width=427 height=427 style="background:#ccc"></canvas><div id=s>start</div>
+<script src="spine-webgl.js"></script>
+<script>
+const WORLD=800, PX=427, PMA=false;
+const BASE=[['stand','happy',20,'standing'],['stand','idle',10,'idle'],['stand','idle-happy',10,'idlehappy'],['stand','idle-drowse',10,'idledrowse'],['stand','idle-sleep',10,'idlesleep'],['move','move',20,'moving'],['sleep-normal','idle',5,'sleep1'],['sleep-drowse','idle',5,'sleep2'],['sleep-rare','idle',5,'sleep3']];
+const JOBS=[];
+for(const id of ['778','710','425']){for(const j of BASE)JOBS.push([id,...j]); if(id==='778'){JOBS.push([id,'stand','damage',20,'damage']);JOBS.push([id,'stand','disguise',20,'disguise'])}}
+const log=m=>{document.getElementById('s').textContent=m};
+(async()=>{
+const canvas=document.getElementById('c');
+const ctx=new spine.ManagedWebGLRenderingContext(canvas,{alpha:true,premultipliedAlpha:PMA,preserveDrawingBuffer:true});
+const gl=ctx.gl;
+const renderer=new spine.SceneRenderer(canvas,gl);
+const summary=[];
+for(let ji=0;ji<JOBS.length;ji++){
+  const [id,file,anim,fps,key]=JOBS[ji];const OUT=id+'/'+key;
+  const am=new spine.AssetManager(ctx,'');
+  am.loadBinary(id+'/'+file+'.skel');am.loadTextureAtlas(id+'/'+file+'.atlas');
+  await new Promise(r=>{const t=()=>am.isLoadingComplete()?r():setTimeout(t,30);t()});
+  const atlas=am.require(id+'/'+file+'.atlas');
+  const sd=new spine.SkeletonBinary(new spine.AtlasAttachmentLoader(atlas)).readSkeletonData(am.require(id+'/'+file+'.skel'));
+  const skel=new spine.Skeleton(sd);
+  // the art may live in the 'normal' skin (not the 'default' one): wear both
+  const combo=new spine.Skin('combo');if(sd.defaultSkin)combo.addSkin(sd.defaultSkin);const nm=sd.findSkin('normal');if(nm)combo.addSkin(nm);skel.setSkin(combo);
+  const st=new spine.AnimationState(new spine.AnimationStateData(sd));
+  const dur=sd.findAnimation(anim).duration;const n=Math.max(1,Math.round(dur*fps));
+  const step=()=>{st.update(1/fps);st.apply(skel);skel.updateWorldTransform()};
+  const reset=()=>{skel.setToSetupPose();st.clearTracks();st.setAnimation(0,anim,true);st.update(0);st.apply(skel);skel.updateWorldTransform()};
+  reset();let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;const off=new spine.Vector2(),size=new spine.Vector2();
+  for(let i=0;i<n;i++){skel.getBounds(off,size,[]);x0=Math.min(x0,off.x);y0=Math.min(y0,off.y);x1=Math.max(x1,off.x+size.x);y1=Math.max(y1,off.y+size.y);step()}
+  // camera: fixed world size; centred on this animation's union bounds
+  renderer.camera.position.x=(x0+x1)/2;renderer.camera.position.y=(y0+y1)/2;renderer.camera.viewportWidth=WORLD;renderer.camera.viewportHeight=WORLD;renderer.camera.update();
+  reset();
+  for(let i=0;i<n;i++){
+    gl.viewport(0,0,PX,PX);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
+    renderer.begin();renderer.drawSkeleton(skel,PMA);renderer.end();
+    const b64=canvas.toDataURL('image/png').split(',')[1];
+    await fetch('/save?name='+OUT+'/'+String(i).padStart(3,'0')+'.png',{method:'POST',body:b64});
+    step();
+    if(i%20===0)log(`${ji+1}/${JOBS.length} ${OUT} ${i+1}/${n}`);
+  }
+  summary.push({id,key,n,fps,dur:+dur.toFixed(3),world:[+x0.toFixed(1),+y0.toFixed(1),+x1.toFixed(1),+y1.toFixed(1)]});
+}
+await fetch('/log',{method:'POST',body:JSON.stringify({renderall:'done',summary})});log('ALL DONE '+JOBS.length);
+})().catch(e=>{log('ERR '+e);fetch('/log',{method:'POST',body:'ERR '+e+' '+(e.stack||'')})});
+</script>

@@ -4,9 +4,9 @@ Small mods for Claude Code (terminal and desktop), written as plugins of functio
 
 | Folder | What it is |
 | --- | --- |
-| `Fuecoco/` | A Fuecoco buddy: a side pane plus a mini version above the prompt. Moods follow the session (walks while Claude works, cheers when a turn is done, dozes off when you're away), with voice clips. |
+| `Fuecoco/` | A buddy for your session, with four to pick from: Fuecoco, Mimikyu, Pumpkaboo and Drifloon (`/pokepal <name>`, or the buttons in the pane). A side pane plus a mini version above the prompt. Moods follow the session (walks while Claude works, cheers when a turn is done, dozes off when you're away), with voice clips. |
 | `Pokeball/` | A Pokéball above the prompt that rocks while Claude works and clicks shut when a turn finishes. |
-| `tools/spine-render/` | The scripts used to turn Pokémon Sleep Spine animations into frames (see below). |
+| `tools/spine-render/` | The scripts used to turn Pokémon Sleep Spine animations into frames (see below): `renderall.html` renders every animation of the listed Pokémon, `process.py` crops and packs them, `mkapng.py` makes the desktop animations. |
 
 ## Loading them
 
