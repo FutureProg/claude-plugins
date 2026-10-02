@@ -38,6 +38,10 @@ const BUDDIES: Record<string, { name: string; anims: Record<string, { frames: nu
       sleep3: { frames: 139, ms: 200 },
       damage: { frames: 37, ms: 50 },
       disguise: { frames: 41, ms: 50 },
+      h2idle: { frames: 53, ms: 100 },
+      h2idlehappy: { frames: 53, ms: 100 },
+      h2idledrowse: { frames: 67, ms: 100 },
+      h2idlesleep: { frames: 67, ms: 100 },
     },
   },
   pumpkaboo: {
@@ -83,6 +87,10 @@ const LABELS: Record<Anim, string> = {
   sleep3: '★3 Sleep',
   damage: 'Hurt',
   disguise: 'Disguise',
+  h2idle: 'Busted',
+  h2idlehappy: 'Busted: Glad',
+  h2idledrowse: 'Busted: Sad',
+  h2idlesleep: 'Busted: Dozing',
 }
 
 // what to play for an animation a buddy does not have: the closest one it does
@@ -95,7 +103,7 @@ function specOf(who: string, anim: Anim) {
   const have = anims[base] ? base : (FALLBACK[base] ?? 'idle')
   const data = anims[have]
 
-  return { frames: data.frames, ms: data.ms, files: have, file: anim === 'happy1' ? 'happy1' : have, once: anim === 'happy1', label: LABELS[anim] }
+  return { frames: data.frames, ms: data.ms, files: have, file: anim === 'happy1' ? 'happy1' : have, once: anim === 'happy1' || anim === 'disguise', label: LABELS[anim] }
 }
 
 // moods follow the session; ticks are 50 ms, so 20 = 1 s
@@ -114,7 +122,8 @@ const MOODS = {
   flustered: { anim: 'idle', text: 'uh-oh', next: 'calm', after: 100 },
   step: { anim: 'idle', text: 'step done, more to go', next: 'drowsy', after: 1200 },
   oops: { anim: 'idlehappy', text: 'did I do something?', next: 'calm', after: 120 },
-  stuck: { anim: 'idledrowse', text: 'hit a wall', next: 'dozing', after: 1200 },
+  stuck: { anim: 'idledrowse', text: 'hit a wall', next: 'busted', after: 42 },
+  busted: { anim: 'idledrowse', text: 'hit a wall', next: 'dozing', after: 1200 },
 } as const
 
 type Mood = keyof typeof MOODS
@@ -133,10 +142,29 @@ let moodSince = 0
 let isAuto = true
 let startleAt = 0
 let buddy = 'fuecoco'
+let busted = false // Mimikyu's disguise is broken (phase 2) until your next prompt
 const haveSounds: Record<string, Set<string>> = {}
+
+// while his disguise is broken, a buddy that has the phase-2 poses rests in them instead
+const BUSTED: Partial<Record<Mood, Anim>> = {
+  busted: 'h2idledrowse',
+  tired: 'h2idledrowse',
+  drowsy: 'h2idledrowse',
+  calm: 'h2idle',
+  step: 'h2idle',
+  alert: 'h2idle',
+  flustered: 'h2idle',
+  glad: 'h2idlehappy',
+  oops: 'h2idlehappy',
+  dozing: 'h2idlesleep',
+  asleep1: 'h2idlesleep',
+  asleep2: 'h2idlesleep',
+  asleep3: 'h2idlesleep',
+}
 
 // the animation a mood plays; a failed tool shows the hurt pose, and a turn that hit a wall the broken disguise, when the buddy has them
 function moodAnim(m: Mood): Anim {
+  if (busted && BUDDIES[buddy]?.anims.h2idle && BUSTED[m]) return BUSTED[m] as Anim
   if (m === 'flustered' && BUDDIES[buddy]?.anims.damage) return 'damage'
   if (m === 'stuck' && BUDDIES[buddy]?.anims.disguise) return 'disguise'
 
@@ -152,6 +180,7 @@ async function setMood($: any, next: Mood) {
   if (next === mood) return
   mood = next
   moodSince = tick
+  if (next === 'stuck' && BUDDIES[buddy]?.anims.h2idle) busted = true
   await $.state.set({ plugin: 'fuecoco', key: 'status' } as const, MOODS[next].text)
 
   if (isAuto) await show($, moodAnim(next))
@@ -175,9 +204,21 @@ async function follow($: any) {
   await show($, moodAnim(mood))
 }
 
+// on or off for good (remembered across sessions); off hides the strip, closes the panel and keeps him quiet
+async function setEnabled($: any, isOn: boolean) {
+  await $.state.set({ plugin: 'fuecoco', key: 'enabled' } as const, isOn)
+  await $.store.set('enabled', isOn)
+
+  if (!isOn) {
+    await $.ui.close({ id: PANE })
+    await $.state.set({ plugin: 'fuecoco', key: 'paneUp' } as const, false)
+  }
+}
+
 async function choose($: any, who: string) {
   if (!BUDDIES[who]) return
   buddy = who
+  busted = false
   await $.state.set({ plugin: 'fuecoco', key: 'buddy' } as const, who)
   await show($, isAuto ? moodAnim(mood) : (await $.state.get({ plugin: 'fuecoco', key: 'anim' } as const)).value ?? 'idle')
 }
@@ -253,7 +294,8 @@ async function soundsOf($: any, who: string) {
 // play one clip unless muted, and remember which, for the pane to show; a missing clip falls back to his plain cry
 async function cry($: any, name: string) {
   const { value: isOn = true } = await $.state.get({ plugin: 'fuecoco', key: 'sound' } as const)
-  if (!isOn) return
+  const { value: isEnabled = true } = await $.state.get({ plugin: 'fuecoco', key: 'enabled' } as const)
+  if (!isOn || !isEnabled) return
 
   const have = await soundsOf($, buddy)
   const clip = have.has(name) ? name : have.has('index') ? 'index' : null
@@ -372,6 +414,10 @@ async function draw($: any, e: any, isMini: boolean) {
 }
 
 async function settle($: any, e: any) {
+  // while he is off there is nothing to react with, and no reason to spend a model call judging the turn
+  const { value: isEnabled = true } = await $.state.get({ plugin: 'fuecoco', key: 'enabled' } as const)
+  if (!isEnabled) return
+
   // you interrupted: he perks up with a question mark
   if (e.isAborted === true || e.reason === 'aborted') {
     failures = 0
@@ -396,9 +442,15 @@ async function settle($: any, e: any) {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'pokepal', description: 'Show your Pokémon pal in a side pane: /pokepal [fuecoco|mimikyu|pumpkaboo|drifloon]' })
-    const opened = await $.ui.open({ id: PANE, title: 'PokéPal' })
-    await $.state.set({ plugin: 'fuecoco', key: 'paneUp' } as const, opened.isPlaced === true)
+    await $.command.register({
+      name: 'pokepal',
+      description: 'A random Pokémon pal; or /pokepal fuecoco|mimikyu|pumpkaboo|drifloon; open-panel / close-panel for the side panel; off / on to disable or enable',
+    })
+    const saved = await $.store.get('enabled')
+    await $.state.set({ plugin: 'fuecoco', key: 'enabled' } as const, saved !== false)
+    // the side panel stays closed unless asked for; after a reload it may already be up
+    const panes = await $.ui.panes()
+    await $.state.set({ plugin: 'fuecoco', key: 'paneUp' } as const, panes.some(p => p.id === PANE && p.isPlaced))
     await $.state.set({ plugin: 'fuecoco', key: 'sound' } as const, true)
     const { value: savedBuddy = 'fuecoco' } = await $.state.get({ plugin: 'fuecoco', key: 'buddy' } as const)
     buddy = BUDDIES[savedBuddy] ? savedBuddy : 'fuecoco'
@@ -427,16 +479,45 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'pokepal' }, async ($, e) => {
-    const wanted = e.args.trim().toLowerCase()
-    if (wanted !== '') {
-      if (!BUDDIES[wanted]) return { text: `Pick one of: ${Object.keys(BUDDIES).join(', ')}` }
-      await choose($, wanted)
+    const arg = e.args.trim().toLowerCase()
+
+    if (arg === 'off' || arg === 'disable' || arg === 'hide') {
+      await setEnabled($, false)
+
+      return {}
     }
 
-    const opened = await $.ui.open({ id: PANE, title: 'PokéPal' })
-    await $.state.set({ plugin: 'fuecoco', key: 'paneUp' } as const, opened.isPlaced === true)
+    // anything else turns him back on
+    await setEnabled($, true)
 
-    return { text: `${BUDDIES[buddy].name} says hi!` }
+    if (arg === 'on' || arg === 'enable') return {}
+
+    if (arg === 'open-panel' || arg === 'panel' || arg === 'open') {
+      const opened = await $.ui.open({ id: PANE, title: 'PokéPal' })
+      await $.state.set({ plugin: 'fuecoco', key: 'paneUp' } as const, opened.isPlaced === true)
+
+      return {}
+    }
+
+    if (arg === 'close-panel' || arg === 'close') {
+      await $.ui.close({ id: PANE })
+      await $.state.set({ plugin: 'fuecoco', key: 'paneUp' } as const, false)
+
+      return {}
+    }
+
+    if (arg !== '') {
+      if (!BUDDIES[arg]) return { text: `Pick one of: ${Object.keys(BUDDIES).join(', ')} (or open-panel, close-panel, off, on)` }
+      await choose($, arg)
+
+      return {}
+    }
+
+    // no argument: a random pal, never the one already out
+    const others = Object.keys(BUDDIES).filter(k => k !== buddy)
+    await choose($, others[Math.floor(Math.random() * others.length)])
+
+    return {}
   })
 
   // the mini Fuecoco above the prompt steps aside while the pane is open, and returns when it closes
@@ -449,6 +530,7 @@ export const register: Register = on => {
 
   on('prompt.submit', async ($, e, next) => {
     failures = 0
+    busted = false
     if (mood === 'dozing' || mood === 'asleep1' || mood === 'asleep2' || mood === 'asleep3') void cry($, 'env')
     await setMood($, 'working')
 
@@ -501,6 +583,9 @@ export const register: Register = on => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const below = await next(e)
     if (e.props.hasSurvey) return below
+
+    const { value: isEnabled = true } = await $.state.get({ plugin: 'fuecoco', key: 'enabled' } as const)
+    if (!isEnabled) return below
 
     const { value: isPaneUp = false } = await $.state.get({ plugin: 'fuecoco', key: 'paneUp' } as const)
     if (isPaneUp) return below
@@ -615,6 +700,8 @@ export const register: Register = on => {
           <Box>
             {tag('damage')}
             {tag('disguise')}
+            {BUDDIES[who]?.anims.h2idle ? tag('h2idle') : null}
+            {BUDDIES[who]?.anims.h2idle ? tag('h2idledrowse') : null}
           </Box>
         ) : null}
       </Box>

@@ -11,6 +11,10 @@ export type Anim =
   | 'sleep3'
   | 'damage'
   | 'disguise'
+  | 'h2idle'
+  | 'h2idlehappy'
+  | 'h2idledrowse'
+  | 'h2idlesleep'
 
 export type Startle = { at: number; mark: string }
 
@@ -28,6 +32,8 @@ declare module 'claude-code' {
       status: string
       /** whether the side pane is open, so the band above the prompt knows to step aside */
       paneUp: boolean
+      /** false after /pokepal off: no strip, no panel, no sound */
+      enabled: boolean
       /** which buddy is out: fuecoco, mimikyu, pumpkaboo or drifloon */
       buddy: string
       /** whether his cry plays */
