@@ -386,7 +386,8 @@ async function draw($: any, e: any, isMini: boolean) {
     )
   }
 
-  if (e.surface === 'desktop') {
+  // desktop, the phone and the editor all draw the animated picture as an SVG
+  if (e.surface === 'desktop' || e.surface === 'mobile' || e.surface === 'vscode') {
     const { Svg } = $.ui.resolve(e)
 
     apngs[cacheKey] ??= (await $.fs.read(`${$.plugin.root}/anim/${who}/${spec.file}.png`, { as: 'bytes' })).base64
@@ -444,7 +445,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'pokepal',
-      description: 'A random Pokémon pal; or /pokepal fuecoco|mimikyu|pumpkaboo|drifloon; open-panel / close-panel for the side panel; off / on to disable or enable',
+      description: 'A random Pokémon pal; or /pokepal fuecoco|mimikyu|pumpkaboo|drifloon; open-panel / close-panel for the side panel; sleep / wake; off / on to disable or enable',
     })
     const saved = await $.store.get('enabled')
     await $.state.set({ plugin: 'fuecoco', key: 'enabled' } as const, saved !== false)
@@ -492,6 +493,21 @@ export const register: Register = on => {
 
     if (arg === 'on' || arg === 'enable') return {}
 
+    // straight to sleep (he wakes at your next prompt, or with /pokepal wake)
+    if (arg === 'sleep') {
+      await follow($)
+      await setMood($, 'asleep1')
+
+      return {}
+    }
+
+    if (arg === 'wake') {
+      await follow($)
+      await poke($)
+
+      return {}
+    }
+
     if (arg === 'open-panel' || arg === 'panel' || arg === 'open') {
       const opened = await $.ui.open({ id: PANE, title: 'PokéPal' })
       await $.state.set({ plugin: 'fuecoco', key: 'paneUp' } as const, opened.isPlaced === true)
@@ -507,7 +523,7 @@ export const register: Register = on => {
     }
 
     if (arg !== '') {
-      if (!BUDDIES[arg]) return { text: `Pick one of: ${Object.keys(BUDDIES).join(', ')} (or open-panel, close-panel, off, on)` }
+      if (!BUDDIES[arg]) return { text: `Pick one of: ${Object.keys(BUDDIES).join(', ')} (or sleep, wake, open-panel, close-panel, off, on)` }
       await choose($, arg)
 
       return {}
