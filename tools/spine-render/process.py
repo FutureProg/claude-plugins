@@ -2,7 +2,7 @@ import glob, os, json, shutil
 import numpy as np
 from PIL import Image
 from mkapng import build
-MOD='/Users/nick/Dev/Claude Plugins/Fuecoco'
+MOD='/Users/nick/Dev/Claude Plugins/Pokepal'
 POKE={'778':'mimikyu','710':'pumpkaboo','425':'drifloon'}
 SIZE=128; MARGIN=14; MINCROP=316; LIM=94
 FPS={'standing':20,'moving':20,'damage':20,'disguise':20,'idle':10,'idlehappy':10,'idledrowse':10,'idlesleep':10,'sleep1':5,'sleep2':5,'sleep3':5}

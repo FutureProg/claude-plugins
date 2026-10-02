@@ -20,7 +20,7 @@ export type Startle = { at: number; mark: string }
 
 declare module 'claude-code' {
   interface PluginState {
-    fuecoco: {
+    pokepal: {
       anim: Anim
       /** the tick the current animation started on (so each one plays from its first frame) */
       since: number

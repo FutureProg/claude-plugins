@@ -1,1 +1,0 @@
-{ "name": "fuecoco", "version": "0.2.0", "description": "A Pokémon pal for your session (Fuecoco, Mimikyu, Pumpkaboo, Drifloon): a side pane and a mini strip above the prompt, animated from Pokémon Sleep.", "types": "./types/index.d.ts" }

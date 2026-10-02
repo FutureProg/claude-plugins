@@ -2,7 +2,7 @@ import type { Register } from 'claude-code'
 
 import type { Anim } from '../types'
 
-const PANE = 'fuecoco'
+const PANE = 'pokepal'
 const TICK_MS = 50
 // desktop only: the strip above the prompt is filled with the page's own background, so it looks transparent
 // (the app draws a grey frame around it that this covers); the terminal's strip has no fill at all
@@ -172,8 +172,8 @@ function moodAnim(m: Mood): Anim {
 }
 
 async function show($: any, anim: Anim) {
-  await $.state.set({ plugin: 'fuecoco', key: 'anim' } as const, anim)
-  await $.state.set({ plugin: 'fuecoco', key: 'since' } as const, tick)
+  await $.state.set({ plugin: 'pokepal', key: 'anim' } as const, anim)
+  await $.state.set({ plugin: 'pokepal', key: 'since' } as const, tick)
 }
 
 async function setMood($: any, next: Mood) {
@@ -181,7 +181,7 @@ async function setMood($: any, next: Mood) {
   mood = next
   moodSince = tick
   if (next === 'stuck' && BUDDIES[buddy]?.anims.h2idle) busted = true
-  await $.state.set({ plugin: 'fuecoco', key: 'status' } as const, MOODS[next].text)
+  await $.state.set({ plugin: 'pokepal', key: 'status' } as const, MOODS[next].text)
 
   if (isAuto) await show($, moodAnim(next))
 }
@@ -189,29 +189,29 @@ async function setMood($: any, next: Mood) {
 function startle($: any, mark: string) {
   startleAt = tick
 
-  return $.state.set({ plugin: 'fuecoco', key: 'startle' } as const, { at: tick, mark })
+  return $.state.set({ plugin: 'pokepal', key: 'startle' } as const, { at: tick, mark })
 }
 
 async function pick($: any, anim: Anim) {
   isAuto = false
-  await $.state.set({ plugin: 'fuecoco', key: 'auto' } as const, false)
+  await $.state.set({ plugin: 'pokepal', key: 'auto' } as const, false)
   await show($, anim)
 }
 
 async function follow($: any) {
   isAuto = true
-  await $.state.set({ plugin: 'fuecoco', key: 'auto' } as const, true)
+  await $.state.set({ plugin: 'pokepal', key: 'auto' } as const, true)
   await show($, moodAnim(mood))
 }
 
 // on or off for good (remembered across sessions); off hides the strip, closes the panel and keeps him quiet
 async function setEnabled($: any, isOn: boolean) {
-  await $.state.set({ plugin: 'fuecoco', key: 'enabled' } as const, isOn)
+  await $.state.set({ plugin: 'pokepal', key: 'enabled' } as const, isOn)
   await $.store.set('enabled', isOn)
 
   if (!isOn) {
     await $.ui.close({ id: PANE })
-    await $.state.set({ plugin: 'fuecoco', key: 'paneUp' } as const, false)
+    await $.state.set({ plugin: 'pokepal', key: 'paneUp' } as const, false)
   }
 }
 
@@ -219,8 +219,8 @@ async function choose($: any, who: string) {
   if (!BUDDIES[who]) return
   buddy = who
   busted = false
-  await $.state.set({ plugin: 'fuecoco', key: 'buddy' } as const, who)
-  await show($, isAuto ? moodAnim(mood) : (await $.state.get({ plugin: 'fuecoco', key: 'anim' } as const)).value ?? 'idle')
+  await $.state.set({ plugin: 'pokepal', key: 'buddy' } as const, who)
+  await show($, isAuto ? moodAnim(mood) : (await $.state.get({ plugin: 'pokepal', key: 'anim' } as const)).value ?? 'idle')
 }
 
 type Verdict = 'done' | 'progress' | 'stuck'
@@ -293,15 +293,15 @@ async function soundsOf($: any, who: string) {
 
 // play one clip unless muted, and remember which, for the pane to show; a missing clip falls back to his plain cry
 async function cry($: any, name: string) {
-  const { value: isOn = true } = await $.state.get({ plugin: 'fuecoco', key: 'sound' } as const)
-  const { value: isEnabled = true } = await $.state.get({ plugin: 'fuecoco', key: 'enabled' } as const)
+  const { value: isOn = true } = await $.state.get({ plugin: 'pokepal', key: 'sound' } as const)
+  const { value: isEnabled = true } = await $.state.get({ plugin: 'pokepal', key: 'enabled' } as const)
   if (!isOn || !isEnabled) return
 
   const have = await soundsOf($, buddy)
   const clip = have.has(name) ? name : have.has('index') ? 'index' : null
   if (clip === null) return
 
-  await $.state.set({ plugin: 'fuecoco', key: 'lastSound' } as const, clip)
+  await $.state.set({ plugin: 'pokepal', key: 'lastSound' } as const, clip)
 
   try {
     await $.audio.play({ asset: `sounds/${buddy}/${clip}.wav` })
@@ -344,9 +344,9 @@ function testSound($: any) {
 
 // Fuecoco's picture for a render event: the pane's big one, or the mini one above the prompt
 async function draw($: any, e: any, isMini: boolean) {
-  const { value: anim = 'idle' } = await $.state.get({ plugin: 'fuecoco', key: 'anim' } as const)
-  const { value: scare = null } = await $.state.get({ plugin: 'fuecoco', key: 'startle' } as const)
-  const { value: who = 'fuecoco' } = await $.state.get({ plugin: 'fuecoco', key: 'buddy' } as const)
+  const { value: anim = 'idle' } = await $.state.get({ plugin: 'pokepal', key: 'anim' } as const)
+  const { value: scare = null } = await $.state.get({ plugin: 'pokepal', key: 'startle' } as const)
+  const { value: who = 'fuecoco' } = await $.state.get({ plugin: 'pokepal', key: 'buddy' } as const)
   const spec = specOf(who, anim as Anim)
   const cacheKey = `${who}/${spec.file}`
 
@@ -360,8 +360,8 @@ async function draw($: any, e: any, isMini: boolean) {
     )
 
     // only the terminal reads the tick: a redraw per tick would make desktop's picture blink
-    const { value: now = 0 } = await $.state.get({ plugin: 'fuecoco', key: 'tick' } as const)
-    const { value: since = 0 } = await $.state.get({ plugin: 'fuecoco', key: 'since' } as const)
+    const { value: now = 0 } = await $.state.get({ plugin: 'pokepal', key: 'tick' } as const)
+    const { value: since = 0 } = await $.state.get({ plugin: 'pokepal', key: 'since' } as const)
     const step = Math.max(0, Math.floor((now - since) / (spec.ms / TICK_MS)))
     const png = frames[cacheKey][spec.once ? Math.min(step, spec.frames - 1) : step % spec.frames]
     const picture = (
@@ -403,7 +403,7 @@ async function draw($: any, e: any, isMini: boolean) {
         : ''
     // a play-once animation restarts only if its source changes, so stamp it with when it started
     const { value: startedAt = 0 } =
-      spec.once ? await $.state.get({ plugin: 'fuecoco', key: 'since' } as const) : { value: 0 }
+      spec.once ? await $.state.get({ plugin: 'pokepal', key: 'since' } as const) : { value: 0 }
     const source =
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><!--${startedAt}--><g>` +
       `<image href="${uri}" x="0" y="0" width="128" height="128"/></g>${bubble}</svg>`
@@ -416,7 +416,7 @@ async function draw($: any, e: any, isMini: boolean) {
 
 async function settle($: any, e: any) {
   // while he is off there is nothing to react with, and no reason to spend a model call judging the turn
-  const { value: isEnabled = true } = await $.state.get({ plugin: 'fuecoco', key: 'enabled' } as const)
+  const { value: isEnabled = true } = await $.state.get({ plugin: 'pokepal', key: 'enabled' } as const)
   if (!isEnabled) return
 
   // you interrupted: he perks up with a question mark
@@ -448,27 +448,27 @@ export const register: Register = on => {
       description: 'A random Pokémon pal; or /pokepal fuecoco|mimikyu|pumpkaboo|drifloon; open-panel / close-panel for the side panel; sleep / wake; off / on to disable or enable',
     })
     const saved = await $.store.get('enabled')
-    await $.state.set({ plugin: 'fuecoco', key: 'enabled' } as const, saved !== false)
+    await $.state.set({ plugin: 'pokepal', key: 'enabled' } as const, saved !== false)
     // the side panel stays closed unless asked for; after a reload it may already be up
     const panes = await $.ui.panes()
-    await $.state.set({ plugin: 'fuecoco', key: 'paneUp' } as const, panes.some(p => p.id === PANE && p.isPlaced))
-    await $.state.set({ plugin: 'fuecoco', key: 'sound' } as const, true)
-    const { value: savedBuddy = 'fuecoco' } = await $.state.get({ plugin: 'fuecoco', key: 'buddy' } as const)
+    await $.state.set({ plugin: 'pokepal', key: 'paneUp' } as const, panes.some(p => p.id === PANE && p.isPlaced))
+    await $.state.set({ plugin: 'pokepal', key: 'sound' } as const, true)
+    const { value: savedBuddy = 'fuecoco' } = await $.state.get({ plugin: 'pokepal', key: 'buddy' } as const)
     buddy = BUDDIES[savedBuddy] ? savedBuddy : 'fuecoco'
-    await $.state.set({ plugin: 'fuecoco', key: 'buddy' } as const, buddy)
-    await $.state.set({ plugin: 'fuecoco', key: 'status' } as const, MOODS[mood].text)
-    await $.state.set({ plugin: 'fuecoco', key: 'auto' } as const, true)
+    await $.state.set({ plugin: 'pokepal', key: 'buddy' } as const, buddy)
+    await $.state.set({ plugin: 'pokepal', key: 'status' } as const, MOODS[mood].text)
+    await $.state.set({ plugin: 'pokepal', key: 'auto' } as const, true)
     await show($, moodAnim(mood))
 
     // one shared clock: the terminal's frame swap, and the mood timeline
     $.clock.every(TICK_MS, () => {
       tick += 1
-      void $.state.set({ plugin: 'fuecoco', key: 'tick' } as const, tick)
+      void $.state.set({ plugin: 'pokepal', key: 'tick' } as const, tick)
 
       // a startle lasts three seconds, then the mark goes away
       if (startleAt > 0 && tick - startleAt >= STARTLE_TICKS) {
         startleAt = 0
-        void $.state.set({ plugin: 'fuecoco', key: 'startle' } as const, null)
+        void $.state.set({ plugin: 'pokepal', key: 'startle' } as const, null)
       }
 
       const spec = MOODS[mood]
@@ -510,14 +510,14 @@ export const register: Register = on => {
 
     if (arg === 'open-panel' || arg === 'panel' || arg === 'open') {
       const opened = await $.ui.open({ id: PANE, title: 'PokéPal' })
-      await $.state.set({ plugin: 'fuecoco', key: 'paneUp' } as const, opened.isPlaced === true)
+      await $.state.set({ plugin: 'pokepal', key: 'paneUp' } as const, opened.isPlaced === true)
 
       return {}
     }
 
     if (arg === 'close-panel' || arg === 'close') {
       await $.ui.close({ id: PANE })
-      await $.state.set({ plugin: 'fuecoco', key: 'paneUp' } as const, false)
+      await $.state.set({ plugin: 'pokepal', key: 'paneUp' } as const, false)
 
       return {}
     }
@@ -539,7 +539,7 @@ export const register: Register = on => {
   // the mini Fuecoco above the prompt steps aside while the pane is open, and returns when it closes
   on('ui.close', { id: PANE }, async ($, e, next) => {
     const closed = await next(e)
-    await $.state.set({ plugin: 'fuecoco', key: 'paneUp' } as const, false)
+    await $.state.set({ plugin: 'pokepal', key: 'paneUp' } as const, false)
 
     return closed
   })
@@ -600,16 +600,16 @@ export const register: Register = on => {
     const below = await next(e)
     if (e.props.hasSurvey) return below
 
-    const { value: isEnabled = true } = await $.state.get({ plugin: 'fuecoco', key: 'enabled' } as const)
+    const { value: isEnabled = true } = await $.state.get({ plugin: 'pokepal', key: 'enabled' } as const)
     if (!isEnabled) return below
 
-    const { value: isPaneUp = false } = await $.state.get({ plugin: 'fuecoco', key: 'paneUp' } as const)
+    const { value: isPaneUp = false } = await $.state.get({ plugin: 'pokepal', key: 'paneUp' } as const)
     if (isPaneUp) return below
 
     const picture = await draw($, e, true)
     if (picture === null) return below
 
-    const { value: scare = null } = await $.state.get({ plugin: 'fuecoco', key: 'startle' } as const)
+    const { value: scare = null } = await $.state.get({ plugin: 'pokepal', key: 'startle' } as const)
     const { Box, Text } = $.ui.resolve(e)
     // on desktop the app draws a grey frame around the strip: stretch past each side to cover it.
     // Negative margins pull the box outward (and shrink what the bar reserves); the padding gives that room back
@@ -656,13 +656,13 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { value: anim = 'idle' } = await $.state.get({ plugin: 'fuecoco', key: 'anim' } as const)
-    const { value: isAutoNow = true } = await $.state.get({ plugin: 'fuecoco', key: 'auto' } as const)
-    const { value: scare = null } = await $.state.get({ plugin: 'fuecoco', key: 'startle' } as const)
-    const { value: status = '' } = await $.state.get({ plugin: 'fuecoco', key: 'status' } as const)
-    const { value: isSoundOn = true } = await $.state.get({ plugin: 'fuecoco', key: 'sound' } as const)
-    const { value: lastSound = '' } = await $.state.get({ plugin: 'fuecoco', key: 'lastSound' } as const)
-    const { value: who = 'fuecoco' } = await $.state.get({ plugin: 'fuecoco', key: 'buddy' } as const)
+    const { value: anim = 'idle' } = await $.state.get({ plugin: 'pokepal', key: 'anim' } as const)
+    const { value: isAutoNow = true } = await $.state.get({ plugin: 'pokepal', key: 'auto' } as const)
+    const { value: scare = null } = await $.state.get({ plugin: 'pokepal', key: 'startle' } as const)
+    const { value: status = '' } = await $.state.get({ plugin: 'pokepal', key: 'status' } as const)
+    const { value: isSoundOn = true } = await $.state.get({ plugin: 'pokepal', key: 'sound' } as const)
+    const { value: lastSound = '' } = await $.state.get({ plugin: 'pokepal', key: 'lastSound' } as const)
+    const { value: who = 'fuecoco' } = await $.state.get({ plugin: 'pokepal', key: 'buddy' } as const)
     const spec = specOf(who, anim)
 
     const picture = await draw($, e, false)
@@ -691,7 +691,7 @@ export const register: Register = on => {
           <Button
             key="sound"
             label={isSoundOn ? 'Sound ✓' : 'Sound'}
-            onPress={() => $.state.set({ plugin: 'fuecoco', key: 'sound' } as const, !isSoundOn)}
+            onPress={() => $.state.set({ plugin: 'pokepal', key: 'sound' } as const, !isSoundOn)}
           />
           <Button key="cry" label="Cry" onPress={() => cry($, 'index')} />
           <Button key="test" label="♪ Next" onPress={() => testSound($)} />
