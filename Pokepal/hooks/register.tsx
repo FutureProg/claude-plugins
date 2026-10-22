@@ -445,7 +445,7 @@ async function settle($: any, e: any) {
 const HELP = [
   `Not sure what that means. Here is what /pokepal takes:`,
   '  /pokepal                      a random buddy',
-  `  /pokepal <name>               pick one: ${Object.keys(BUDDIES).join(', ')}`,
+  `  /pokepal go <name>            pick one: ${Object.keys(BUDDIES).join(', ')} (just go: a random one)`,
   '  /pokepal sleep | wake         put him to sleep or wake him',
   '  /pokepal open-panel           show the side panel (close-panel hides it)',
   '  /pokepal bg light|dark|auto   strip colour on desktop (auto follows the theme)',
@@ -475,7 +475,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'pokepal',
-      description: 'A random Pokémon pal; or /pokepal fuecoco|mimikyu|pumpkaboo|drifloon; open-panel / close-panel for the side panel; sleep / wake; bg light|dark|auto for the strip colour; off / on to disable or enable',
+      description: 'A random Pokémon pal; or /pokepal go fuecoco|mimikyu|pumpkaboo|drifloon; open-panel / close-panel for the side panel; sleep / wake; bg light|dark|auto for the strip colour; off / on to disable or enable',
     })
     const saved = await $.store.get('enabled')
     await $.state.set({ plugin: 'pokepal', key: 'enabled' } as const, saved !== false)
@@ -563,14 +563,18 @@ export const register: Register = on => {
       return {}
     }
 
-    if (arg !== '') {
-      if (!BUDDIES[arg]) return { text: HELP }
-      await choose($, arg)
+    // go <name> picks a buddy; plain go, like no argument, picks a random one
+    const who = arg.startsWith('go') ? arg.slice(2).trim() : ''
+    if (arg !== '' && !(arg === 'go' || arg.startsWith('go '))) return { text: HELP }
+
+    if (who !== '') {
+      if (!BUDDIES[who]) return { text: `No buddy called "${who}". Pick one of: ${Object.keys(BUDDIES).join(', ')}` }
+      await choose($, who)
 
       return {}
     }
 
-    // no argument: a random pal, never the one already out
+    // a random pal, never the one already out
     const others = Object.keys(BUDDIES).filter(k => k !== buddy)
     await choose($, others[Math.floor(Math.random() * others.length)])
 
