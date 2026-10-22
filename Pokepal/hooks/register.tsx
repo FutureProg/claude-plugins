@@ -442,6 +442,16 @@ async function settle($: any, e: any) {
   failures = 0
 }
 
+const HELP = [
+  `Not sure what that means. Here is what /pokepal takes:`,
+  '  /pokepal                      a random buddy',
+  `  /pokepal <name>               pick one: ${Object.keys(BUDDIES).join(', ')}`,
+  '  /pokepal sleep | wake         put him to sleep or wake him',
+  '  /pokepal open-panel           show the side panel (close-panel hides it)',
+  '  /pokepal bg light|dark|auto   strip colour on desktop (auto follows the theme)',
+  '  /pokepal off | on             turn him off for good, or back on',
+].join('\n')
+
 // which fill the strip gets: the saved override, else the app's theme setting (anything with "dark" in it), else light
 async function applyBg($: any) {
   const saved = await $.store.get('bg')
@@ -554,7 +564,7 @@ export const register: Register = on => {
     }
 
     if (arg !== '') {
-      if (!BUDDIES[arg]) return { text: `Pick one of: ${Object.keys(BUDDIES).join(', ')} (or sleep, wake, open-panel, close-panel, bg, off, on)` }
+      if (!BUDDIES[arg]) return { text: HELP }
       await choose($, arg)
 
       return {}
