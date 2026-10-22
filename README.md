@@ -41,8 +41,14 @@ Put the folder in `CLAUDE_CODE_PLUGIN_DIRS` in the `env` block of `~/.claude/set
 
 ## Notes on the assets (private repo)
 
-`Pokepal/frames`, `Pokepal/anim` and `Pokepal/sounds` hold art and audio from the Pokémon games. Those belong to Nintendo, Game Freak and The Pokémon Company. They are here for personal use only: keep this repository private and do not redistribute them.
+`Pokepal/frames`, `Pokepal/anim` and `Pokepal/sounds` hold art and audio from the Pokémon games. They are here for personal use only
 
 - Animation frames were rendered from the Spine 4.0.63 skeletons for Pokémon Sleep (as shown on the RaenonX Pokémon Sleep Wiki) with `tools/spine-render` and the spine-webgl 4.0 runtime. Render with premultiplied alpha **off**, or the pieces get bright outlines.
 - Voice clips are the Scarlet/Violet sounds (Pumpkaboo's from Z-A), from a personal collection.
 - Desktop pictures are palette APNGs, because the desktop's SVG source is capped at 131,072 characters.
+
+
+## Sources
+### Poképal
+- Sounds - https://sounds.spriters-resource.com/ (scarlet/violet, Legands ZA)
+- Animations - https://pks.raenonx.cc/en/pokedex (ripped and rebuilt)
