@@ -36,6 +36,8 @@ declare module 'claude-code' {
       enabled: boolean
       /** which buddy is out: fuecoco, mimikyu, pumpkaboo or drifloon */
       buddy: string
+      /** the desktop strip's fill: light or dark */
+      bg: string
       /** whether his cry plays */
       sound: boolean
       /** the last sound that played, shown in the pane */

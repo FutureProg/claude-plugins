@@ -5,8 +5,9 @@ import type { Anim } from '../types'
 const PANE = 'pokepal'
 const TICK_MS = 50
 // desktop only: the strip above the prompt is filled with the page's own background, so it looks transparent
-// (the app draws a grey frame around it that this covers); the terminal's strip has no fill at all
-const BAND_BG = '#fcfcfb'
+// (the app draws a grey frame around it that this covers); the terminal's strip has no fill at all.
+// Light or dark, from the theme setting, or /pokepal bg light|dark|auto to force one
+const BAND_BG: Record<string, string> = { light: '#fcfcfb', dark: '#151515' }
 
 // the buddies: each has the same set of animations (rendered frames and ms per frame); Mimikyu also has a hurt pose and a disguise
 const BUDDIES: Record<string, { name: string; anims: Record<string, { frames: number; ms: number }> }> = {
@@ -441,14 +442,34 @@ async function settle($: any, e: any) {
   failures = 0
 }
 
+// which fill the strip gets: the saved override, else the app's theme setting (anything with "dark" in it), else light
+async function applyBg($: any) {
+  const saved = await $.store.get('bg')
+  let bg = saved === 'light' || saved === 'dark' ? saved : 'light'
+
+  if (bg !== saved) {
+    try {
+      const theme = (await $.config.list()).find((row: any) => row.key === 'theme')
+      if (typeof theme?.value === 'string' && theme.value.includes('dark')) bg = 'dark'
+    } catch {
+      // no theme to read: stay light
+    }
+  }
+
+  await $.state.set({ plugin: 'pokepal', key: 'bg' } as const, bg)
+
+  return bg
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'pokepal',
-      description: 'A random Pokémon pal; or /pokepal fuecoco|mimikyu|pumpkaboo|drifloon; open-panel / close-panel for the side panel; sleep / wake; off / on to disable or enable',
+      description: 'A random Pokémon pal; or /pokepal fuecoco|mimikyu|pumpkaboo|drifloon; open-panel / close-panel for the side panel; sleep / wake; bg light|dark|auto for the strip colour; off / on to disable or enable',
     })
     const saved = await $.store.get('enabled')
     await $.state.set({ plugin: 'pokepal', key: 'enabled' } as const, saved !== false)
+    await applyBg($)
     // the side panel stays closed unless asked for; after a reload it may already be up
     const panes = await $.ui.panes()
     await $.state.set({ plugin: 'pokepal', key: 'paneUp' } as const, panes.some(p => p.id === PANE && p.isPlaced))
@@ -488,6 +509,16 @@ export const register: Register = on => {
       return {}
     }
 
+    // the strip's fill on desktop: bg light | dark | auto (auto follows the theme setting)
+    if (arg === 'bg' || arg.startsWith('bg ')) {
+      const choice = arg.slice(2).trim()
+      if (choice !== 'light' && choice !== 'dark' && choice !== 'auto') return { text: 'Usage: /pokepal bg light|dark|auto' }
+      await $.store.set('bg', choice)
+      const bg = await applyBg($)
+
+      return { text: `Strip background: ${choice === 'auto' ? `auto (using ${bg})` : choice}` }
+    }
+
     // anything else turns him back on
     await setEnabled($, true)
 
@@ -523,7 +554,7 @@ export const register: Register = on => {
     }
 
     if (arg !== '') {
-      if (!BUDDIES[arg]) return { text: `Pick one of: ${Object.keys(BUDDIES).join(', ')} (or sleep, wake, open-panel, close-panel, off, on)` }
+      if (!BUDDIES[arg]) return { text: `Pick one of: ${Object.keys(BUDDIES).join(', ')} (or sleep, wake, open-panel, close-panel, bg, off, on)` }
       await choose($, arg)
 
       return {}
@@ -609,6 +640,8 @@ export const register: Register = on => {
     const picture = await draw($, e, true)
     if (picture === null) return below
 
+    const { value: bgName = 'light' } = await $.state.get({ plugin: 'pokepal', key: 'bg' } as const)
+
     const { value: scare = null } = await $.state.get({ plugin: 'pokepal', key: 'startle' } as const)
     const { Box, Text } = $.ui.resolve(e)
     // on desktop the app draws a grey frame around the strip: stretch past each side to cover it.
@@ -635,7 +668,7 @@ export const register: Register = on => {
       ) : null
     const mine =
       e.surface === 'desktop' ? (
-        <Box alignItems="center" justifyContent="center" backgroundColor={BAND_BG} {...fit}>
+        <Box alignItems="center" justifyContent="center" backgroundColor={BAND_BG[bgName] ?? BAND_BG.light} {...fit}>
           {picture}
         </Box>
       ) : (
