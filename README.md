@@ -8,7 +8,19 @@ Small mods for Claude Code (terminal and desktop), written as plugins of functio
 | `Pokeball/` | A Pokéball above the prompt that rocks while Claude works and clicks shut when a turn finishes. |
 | `tools/spine-render/` | The scripts used to turn Pokémon Sleep Spine animations into frames (see below): `renderall.html` renders every animation of the listed Pokémon, `process.py` crops and packs them, `mkapng.py` makes the desktop animations. |
 
-## Loading them
+## Installing as a plugin
+
+This repo is a plugin marketplace. From a terminal session:
+
+```
+/plugin marketplace add FutureProg/claude-plugins
+/plugin install pokepal@nicks-plugins
+/plugin install pokeball@nicks-plugins
+```
+
+Or from a shell: `claude plugin marketplace add FutureProg/claude-plugins`, then `claude plugin install pokepal@nicks-plugins`. The repo is private, so you need GitHub access set up on your machine. To try it from a local checkout, use `claude plugin marketplace add "<path to this repo>"`.
+
+## Loading them (development)
 
 In a terminal session:
 

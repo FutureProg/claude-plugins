@@ -1,0 +1,17 @@
+{
+  "name": "nicks-plugins",
+  "description": "Small Pokémon mods for Claude Code: a buddy for your session and a Pokéball above the prompt.",
+  "owner": { "name": "Nick Morrison" },
+  "plugins": [
+    {
+      "name": "pokepal",
+      "source": "./Pokepal",
+      "description": "A Pokémon pal for your session (Fuecoco, Mimikyu, Pumpkaboo, Drifloon): a side pane and a mini strip above the prompt."
+    },
+    {
+      "name": "pokeball",
+      "source": "./Pokeball",
+      "description": "A Pokéball above the prompt that wobbles while Claude works and clicks shut when a turn completes."
+    }
+  ]
+}
