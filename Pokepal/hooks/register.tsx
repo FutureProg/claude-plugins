@@ -10,9 +10,10 @@ const TICK_MS = 50
 const BAND_BG: Record<string, string> = { light: '#fcfcfb', dark: '#151515' }
 
 // the buddies: each has the same set of animations (rendered frames and ms per frame); Mimikyu also has a hurt pose and a disguise
-const BUDDIES: Record<string, { name: string; anims: Record<string, { frames: number; ms: number }> }> = {
+const BUDDIES: Record<string, { name: string; dex: number; anims: Record<string, { frames: number; ms: number }> }> = {
   fuecoco: {
     name: 'Fuecoco',
+    dex: 909,
     anims: {
       standing: { frames: 71, ms: 50 },
       moving: { frames: 26, ms: 50 },
@@ -27,6 +28,7 @@ const BUDDIES: Record<string, { name: string; anims: Record<string, { frames: nu
   },
   mimikyu: {
     name: 'Mimikyu',
+    dex: 778,
     anims: {
       standing: { frames: 80, ms: 50 },
       moving: { frames: 29, ms: 50 },
@@ -47,6 +49,7 @@ const BUDDIES: Record<string, { name: string; anims: Record<string, { frames: nu
   },
   pumpkaboo: {
     name: 'Pumpkaboo',
+    dex: 710,
     anims: {
       standing: { frames: 80, ms: 50 },
       moving: { frames: 47, ms: 50 },
@@ -61,6 +64,7 @@ const BUDDIES: Record<string, { name: string; anims: Record<string, { frames: nu
   },
   drifloon: {
     name: 'Drifloon',
+    dex: 425,
     anims: {
       standing: { frames: 85, ms: 50 },
       moving: { frames: 50, ms: 50 },
@@ -442,10 +446,18 @@ async function settle($: any, e: any) {
   failures = 0
 }
 
+// a buddy's key from what was typed: its name, or its national dex number (909 or #909)
+function whoIs(typed: string): string | undefined {
+  if (BUDDIES[typed]) return typed
+  const dex = Number(typed.replace(/^#/, ''))
+
+  return Object.keys(BUDDIES).find(k => BUDDIES[k].dex === dex)
+}
+
 const HELP = [
   `Not sure what that means. Here is what /pokepal takes:`,
   '  /pokepal                      a random buddy',
-  `  /pokepal go <name>            pick one: ${Object.keys(BUDDIES).join(', ')} (just go: a random one)`,
+  `  /pokepal go <name or dex no.> pick one: ${Object.keys(BUDDIES).map(k => `${k} (${BUDDIES[k].dex})`).join(', ')}; just go: a random one`,
   '  /pokepal sleep | wake         put him to sleep or wake him',
   '  /pokepal open-panel           show the side panel (close-panel hides it)',
   '  /pokepal bg light|dark|auto   strip colour on desktop (auto follows the theme)',
@@ -475,7 +487,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'pokepal',
-      description: 'A random Pokémon pal; or /pokepal go fuecoco|mimikyu|pumpkaboo|drifloon; open-panel / close-panel for the side panel; sleep / wake; bg light|dark|auto for the strip colour; off / on to disable or enable',
+      description: 'A random Pokémon pal; or /pokepal go <name or national dex number>; open-panel / close-panel for the side panel; sleep / wake; bg light|dark|auto for the strip colour; off / on to disable or enable',
     })
     const saved = await $.store.get('enabled')
     await $.state.set({ plugin: 'pokepal', key: 'enabled' } as const, saved !== false)
@@ -563,12 +575,16 @@ export const register: Register = on => {
       return {}
     }
 
-    // go <name> picks a buddy; plain go, like no argument, picks a random one
-    const who = arg.startsWith('go') ? arg.slice(2).trim() : ''
-    if (arg !== '' && !(arg === 'go' || arg.startsWith('go '))) return { text: HELP }
+    // go <name or national dex number> picks a buddy; plain go, like no argument, picks a random one.
+    // A bare name (the old form) still works, but is not advertised.
+    const isGo = arg === 'go' || arg.startsWith('go ')
+    const typed = isGo ? arg.slice(2).trim() : arg
 
-    if (who !== '') {
-      if (!BUDDIES[who]) return { text: `No buddy called "${who}". Pick one of: ${Object.keys(BUDDIES).join(', ')}` }
+    if (typed !== '') {
+      const who = isGo ? whoIs(typed) : BUDDIES[typed] ? typed : undefined
+      if (!who) {
+        return { text: isGo ? `No buddy called "${typed}". Pick one of: ${Object.keys(BUDDIES).map(k => `${k} (${BUDDIES[k].dex})`).join(', ')}` : HELP }
+      }
       await choose($, who)
 
       return {}
